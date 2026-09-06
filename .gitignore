@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+
+.env
+
+models/*.pkl
+models/*.joblib
+
+dataset/raw/
+
+.vscode/
+.idea/
+
+.DS_Store

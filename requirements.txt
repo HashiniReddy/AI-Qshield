@@ -1,0 +1,10 @@
+opencv-python
+pyzbar
+Pillow
+requests
+pandas
+numpy
+streamlit
+python-dotenv
+dnspython
+tldextract
