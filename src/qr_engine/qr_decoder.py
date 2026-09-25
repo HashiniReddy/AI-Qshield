@@ -20,6 +20,7 @@ Important security principle:
     URL Intelligence Engine.
 """
 
+from altair import value
 import cv2
 from pathlib import Path
 from urllib.parse import urlparse
@@ -94,6 +95,7 @@ class QRDecoder:
         # ---------------------------------------------------------
 
         image = cv2.imread(str(image_path))
+        print("Image Shape:", image.shape)
 
         # ---------------------------------------------------------
         # STEP 4: Check whether OpenCV successfully loaded it
@@ -107,12 +109,43 @@ class QRDecoder:
                 "content_type": None,
                 "is_url": False
             }
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        print("Gray Image Shape:", gray.shape)
+        middle_row = gray[165]
+
+        row = middle_row[35:90]
+
+        binary_row = ["B" if pixel < 128 else "W" for pixel in row]
+        runs = []
+
+        current = binary_row[0]
+        count = 1
+
+        for value in binary_row[1:]:
+          if value == current:
+              count += 1
+          else:
+             runs.append((current, count))
+             current = value
+             count = 1
+
+        runs.append((current, count))
+
+        print("Runs:", runs)
+
+        print("QR Row Binary:", binary_row)
 
         # ---------------------------------------------------------
         # STEP 5: Detect and decode the QR code
         # ---------------------------------------------------------
 
         content, points, _ = self.detector.detectAndDecode(image)
+
+        print("QR Points:", points)
+
+        geometry = self.get_geometry(points, image.shape)
+        print("QR Geometry:", geometry)
 
         # ---------------------------------------------------------
         # STEP 6: Check whether a QR code was detected
@@ -156,6 +189,57 @@ class QRDecoder:
             "content_type": content_type,
             "is_url": is_url
         }
+
+    @staticmethod
+    def get_geometry(points, image_shape):
+        """
+        Calculate the detected QR bounding-box dimensions.
+        """
+
+        if points is None:
+            return None
+
+        points = points[0]
+
+        x_min = points[:, 0].min()
+        x_max = points[:, 0].max()
+
+        y_min = points[:, 1].min()
+        y_max = points[:, 1].max()
+
+        width = x_max - x_min
+        height = y_max - y_min
+        image_height, image_width = image_shape[:2]
+
+        left_margin = x_min
+        top_margin = y_min
+        right_margin = image_width - x_max
+        bottom_margin = image_height - y_max
+        margins = [
+            left_margin,
+            top_margin,
+            right_margin,
+            bottom_margin
+        ]
+
+        margin_difference = max(margins) - min(margins)
+        quiet_zone_consistent = margin_difference <= 5
+
+        return {
+            "x_min": float(x_min),
+            "y_min": float(y_min),
+            "x_max": float(x_max),
+            "y_max": float(y_max),
+            "width": float(width),
+            "height": float(height),
+            "left_margin": float(left_margin),
+            "top_margin": float(top_margin),
+            "right_margin": float(right_margin),
+            "bottom_margin": float(bottom_margin),
+            "margin_difference": float(margin_difference),
+        "quiet_zone_consistent": bool(quiet_zone_consistent)
+}
+        
 
     @staticmethod
     def is_url(content):
