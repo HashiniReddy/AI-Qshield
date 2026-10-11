@@ -1,6 +1,8 @@
 
 """Format AI-QShield analysis into an investigator-friendly report."""
 
+from src.risk_engine.severity_guidance import get_severity_guidance
+
 
 DEFAULT_SCORING_NOTE = (
     "Risk scores are heuristic review signals, "
@@ -43,6 +45,11 @@ def build_risk_report(analysis):
     risk_level = risk.get("risk_level")
     if not isinstance(risk_level, str) or not risk_level.strip():
         risk_level = "UNKNOWN"
+    else:
+        risk_level = risk_level.strip().upper()
+
+    # Get an explanation and recommended action for the risk level.
+    guidance = get_severity_guidance(risk_level)
 
     # Ignore malformed explanation entries safely.
     findings = risk.get("explanations", [])
@@ -106,6 +113,8 @@ def build_risk_report(analysis):
         "success": True,
         "risk_score": score,
         "risk_level": risk_level,
+        "severity_summary": guidance["summary"],
+        "recommended_action": guidance["recommended_action"],
         "decoded_content": decoding.get("content"),
         "url_findings": url_findings,
         "redirect_findings": redirect_findings,

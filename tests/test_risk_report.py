@@ -138,3 +138,21 @@ def test_report_recommends_review_for_positive_score():
 
     assert report["success"] is True
     assert "Review" in report["recommendation"]
+def test_report_includes_severity_guidance():
+    analysis = {
+        "success": True,
+        "risk_assessment": {
+            "score": 80,
+            "risk_level": "HIGH",
+            "explanations": [],
+            "review_recommended": True,
+        },
+        "decoding": {"content": "https://example.com"},
+    }
+
+    report = build_risk_report(analysis)
+
+    assert report["success"] is True
+    assert report["severity_summary"]
+    assert report["recommended_action"]
+    assert "high" in report["severity_summary"].lower()
