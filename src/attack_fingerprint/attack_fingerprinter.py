@@ -108,3 +108,62 @@ def identify_attack_fingerprints(
         })
 
     return fingerprints
+
+def correlate_attack_evidence(fingerprints):
+    """Summarize findings across distinct evidence sources."""
+
+    if not isinstance(fingerprints, list):
+        fingerprints = []
+
+    valid_fingerprints = [
+        item for item in fingerprints
+        if isinstance(item, dict)
+    ]
+
+    source_names = {
+        "url_analysis",
+        "redirect_analysis",
+        "threat_intelligence",
+    }
+
+    sources = sorted({
+        item.get("source")
+        for item in valid_fingerprints
+        if item.get("source") in source_names
+    })
+
+    source_count = len(sources)
+    fingerprint_count = len(valid_fingerprints)
+
+    if source_count == 0:
+        evidence_level = "NO_EVIDENCE"
+        explanation = (
+            "No recognized evidence sources support a finding."
+        )
+    elif source_count == 1:
+        evidence_level = "SINGLE_SOURCE"
+        explanation = (
+            "Findings come from one evidence source. "
+            "Additional verification is recommended."
+        )
+    elif source_count == 2:
+        evidence_level = "CORROBORATED"
+        explanation = (
+            "Findings appear across two evidence sources. "
+            "Review the underlying evidence before deciding."
+        )
+    else:
+        evidence_level = "MULTI_SOURCE"
+        explanation = (
+            "Findings appear across three evidence sources. "
+            "Review each result because this does not prove "
+            "that the QR code is malicious."
+        )
+
+    return {
+        "evidence_level": evidence_level,
+        "fingerprint_count": fingerprint_count,
+        "source_count": source_count,
+        "sources": sources,
+        "explanation": explanation,
+    }

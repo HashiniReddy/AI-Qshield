@@ -80,3 +80,74 @@ def test_multiple_evidence_sources_can_match():
         "QR-REDIRECT-001",
         "QR-THREAT-001",
     }
+
+from src.attack_fingerprint.attack_fingerprinter import (
+    correlate_attack_evidence,
+)
+
+
+def test_no_fingerprints_returns_no_evidence():
+    result = correlate_attack_evidence([])
+
+    assert result["evidence_level"] == "NO_EVIDENCE"
+    assert result["source_count"] == 0
+
+
+def test_one_source_returns_single_source():
+    result = correlate_attack_evidence([
+        {
+            "fingerprint_id": "QR-URL-001",
+            "source": "url_analysis",
+        }
+    ])
+
+    assert result["evidence_level"] == "SINGLE_SOURCE"
+    assert result["source_count"] == 1
+
+
+def test_two_sources_return_corroborated():
+    result = correlate_attack_evidence([
+        {
+            "fingerprint_id": "QR-URL-001",
+            "source": "url_analysis",
+        },
+        {
+            "fingerprint_id": "QR-REDIRECT-001",
+            "source": "redirect_analysis",
+        },
+    ])
+
+    assert result["evidence_level"] == "CORROBORATED"
+    assert result["source_count"] == 2
+
+
+def test_three_sources_return_multi_source():
+    result = correlate_attack_evidence([
+        {"source": "url_analysis"},
+        {"source": "redirect_analysis"},
+        {"source": "threat_intelligence"},
+    ])
+
+    assert result["evidence_level"] == "MULTI_SOURCE"
+    assert result["source_count"] == 3
+
+
+def test_duplicate_sources_are_counted_once():
+    result = correlate_attack_evidence([
+        {"source": "url_analysis"},
+        {"source": "url_analysis"},
+    ])
+
+    assert result["source_count"] == 1
+    assert result["fingerprint_count"] == 2
+
+
+def test_malformed_input_is_handled():
+    result = correlate_attack_evidence([
+        None,
+        "invalid",
+        {"source": "unknown_source"},
+    ])
+
+    assert result["evidence_level"] == "NO_EVIDENCE"
+    assert result["source_count"] == 0

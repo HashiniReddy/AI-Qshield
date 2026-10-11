@@ -17,6 +17,7 @@ from src.threat_intel.threat_intel_client import (
 )
 from src.attack_fingerprint.attack_fingerprinter import (
     identify_attack_fingerprints,
+    correlate_attack_evidence,
 )
 
 
@@ -48,6 +49,17 @@ class QRAnalysisPipeline:
                 "redirect_analysis": None,
                 "threat_intelligence": None,
                 "risk_report": None,
+                "attack_fingerprints": [],
+                "evidence_correlation": {
+                    "evidence_level": "NO_EVIDENCE",
+                    "fingerprint_count": 0,
+                    "source_count": 0,
+                    "sources": [],
+                    "explanation": (
+                        "No recognized evidence sources "
+                        "support a finding."
+                    ),
+                },
             }
 
         content = decoded.get("content", "")
@@ -130,11 +142,17 @@ class QRAnalysisPipeline:
                 url_analysis["indicators"],
                 redirect_analysis=redirect_analysis,
             )
-                # Step 6a: Identify explainable attack fingerprints.
+
+        # Step 6a: Identify explainable attack fingerprints.
         attack_fingerprints = identify_attack_fingerprints(
             url_analysis=url_analysis,
             redirect_analysis=redirect_analysis,
             threat_intelligence=threat_intelligence,
+        )
+
+        # Step 6b: Correlate evidence across recognized sources.
+        evidence_correlation = correlate_attack_evidence(
+            attack_fingerprints
         )
 
         # Step 7: Build the complete analysis result.
@@ -149,6 +167,7 @@ class QRAnalysisPipeline:
             "threat_intelligence": threat_intelligence,
             "risk_report": None,
             "attack_fingerprints": attack_fingerprints,
+            "evidence_correlation": evidence_correlation,
         }
 
         # Step 8: Create the readable investigator report.
