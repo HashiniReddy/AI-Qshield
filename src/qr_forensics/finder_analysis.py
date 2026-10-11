@@ -1,36 +1,78 @@
 
 import cv2
+import numpy as np
 
 
 def analyze_finder_regions(image, points):
     """
-    Measure dark-pixel density near the three expected
-    QR finder-pattern corners.
+    Measure dark-pixel density near three approximate QR corners.
 
-    This is a heuristic, not a definitive pattern detector.
+    This is a heuristic, not a definitive finder-pattern
+    or tampering detector.
     """
 
-    if image is None or points is None:
+    # Validate the image.
+    if (
+        image is None
+        or not isinstance(image, np.ndarray)
+        or image.size == 0
+        or image.ndim not in (2, 3)
+    ):
         return {
             "success": False,
-            "error": "Image or QR corner points unavailable",
+            "error": "Invalid or empty image",
             "regions": {}
         }
 
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # Validate the detected corner points.
+    try:
+        corners_array = np.asarray(points, dtype=np.float32)
 
-    # OpenCV normally returns four QR corner points.
-    corners = points[0]
+        if corners_array.size != 8:
+            raise ValueError
 
+        corners = corners_array.reshape(4, 2)
+
+        if not np.isfinite(corners).all():
+            raise ValueError
+
+    except (TypeError, ValueError):
+        return {
+            "success": False,
+            "error": "Invalid QR corner points",
+            "regions": {}
+        }
+
+    # Convert the image to grayscale.
+    if image.ndim == 2:
+        gray = image
+    elif image.shape[2] == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    elif image.shape[2] == 4:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
+    else:
+        return {
+            "success": False,
+            "error": "Unsupported image format",
+            "regions": {}
+        }
+
+    # OpenCV corner order: top-left, top-right,
+    # bottom-right, bottom-left.
     top_left = corners[0]
     top_right = corners[1]
     bottom_left = corners[3]
 
-    # Estimate the QR bounding-box dimensions.
-    width = max(1, int(max(corners[:, 0]) - min(corners[:, 0])))
-    height = max(1, int(max(corners[:, 1]) - min(corners[:, 1])))
+    width = int(np.ptp(corners[:, 0]))
+    height = int(np.ptp(corners[:, 1]))
 
-    # Use approximately one quarter of the QR dimensions.
+    if width <= 0 or height <= 0:
+        return {
+            "success": False,
+            "error": "Invalid QR geometry",
+            "regions": {}
+        }
+
     region_width = max(1, width // 4)
     region_height = max(1, height // 4)
 
@@ -45,22 +87,19 @@ def analyze_finder_regions(image, points):
     regions = {}
 
     for name, corner in candidate_corners.items():
-        x = int(corner[0])
-        y = int(corner[1])
+        x, y = map(int, corner)
 
         if name == "top_left":
             x1, x2 = x, x + region_width
             y1, y2 = y, y + region_height
-
         elif name == "top_right":
             x1, x2 = x - region_width, x
             y1, y2 = y, y + region_height
-
         else:
             x1, x2 = x, x + region_width
             y1, y2 = y - region_height, y
 
-        # Keep the crop within image boundaries.
+        # Clamp coordinates to image boundaries.
         x1 = max(0, min(x1, image_width))
         x2 = max(0, min(x2, image_width))
         y1 = max(0, min(y1, image_height))
@@ -75,7 +114,7 @@ def analyze_finder_regions(image, points):
             }
             continue
 
-        dark_pixels = int((crop < 128).sum())
+        dark_pixels = int(np.count_nonzero(crop < 128))
         total_pixels = int(crop.size)
 
         regions[name] = {
