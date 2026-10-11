@@ -91,3 +91,51 @@ def test_pipeline_includes_url_analysis_and_risk_assessment():
         "MINIMAL", "LOW", "MEDIUM", "HIGH"
     ]
     assert isinstance(result["risk_assessment"]["explanations"], list)
+
+def test_pipeline_includes_readable_risk_report():
+    pipeline = QRAnalysisPipeline()
+
+    result = pipeline.analyze("dataset/test_qr.png")
+
+    assert result["success"] is True
+    assert result["risk_report"] is not None
+    assert result["risk_report"]["success"] is True
+    assert result["risk_report"]["risk_score"] == (
+        result["risk_assessment"]["score"]
+    )
+    assert result["risk_report"]["risk_level"] == (
+        result["risk_assessment"]["risk_level"]
+    )
+    assert result["risk_report"]["decoded_content"] == (
+        "https://example.com"
+    )
+    assert result["risk_report"]["redirect_status"] == "Not performed"
+
+
+def test_pipeline_report_exists_when_redirect_analysis_is_enabled():
+    pipeline = QRAnalysisPipeline()
+
+    with patch(
+        "src.qr_engine.analysis_pipeline.analyze_redirects"
+    ) as mock_redirects:
+        mock_redirects.return_value = {
+            "success": True,
+            "error": None,
+            "original_url": "https://example.com",
+            "final_url": "https://example.org",
+            "redirect_count": 1,
+            "redirect_chain": [
+                "https://example.com",
+                "https://example.org",
+            ],
+            "indicators": ["FINAL_HOST_DIFFERS"],
+        }
+
+        result = pipeline.analyze(
+            "dataset/test_qr.png",
+            check_redirects=True,
+        )
+
+    assert result["risk_report"]["success"] is True
+    assert result["risk_report"]["redirect_status"] == "Completed"
+    assert len(result["risk_report"]["redirect_findings"]) >= 1

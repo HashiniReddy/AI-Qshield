@@ -8,6 +8,7 @@ from src.qr_forensics.forensics_report import analyze_qr_forensics
 from src.redirect_engine.redirect_analyzer import analyze_redirects
 from src.url_engine.url_analyzer import analyze_url
 from src.risk_engine.url_risk_scorer import score_combined_risk
+from src.report_engine.risk_report import build_risk_report
 
 
 class QRAnalysisPipeline:
@@ -31,6 +32,7 @@ class QRAnalysisPipeline:
                 "url_analysis": None,
                 "risk_assessment": None,
                 "redirect_analysis": None,
+                "risk_report": None,
             }
 
         content = decoded.get("content", "")
@@ -69,8 +71,8 @@ class QRAnalysisPipeline:
                 redirect_analysis=redirect_analysis,
             )
 
-        # Step 7: Return the combined report.
-        return {
+        # Step 7: Build the complete analysis result.
+        result = {
             "success": True,
             "error": None,
             "decoding": decoded,
@@ -78,4 +80,10 @@ class QRAnalysisPipeline:
             "url_analysis": url_analysis,
             "risk_assessment": risk_assessment,
             "redirect_analysis": redirect_analysis,
+            "risk_report": None,
         }
+
+        # Step 8: Create the readable investigator report.
+        result["risk_report"] = build_risk_report(result)
+
+        return result
