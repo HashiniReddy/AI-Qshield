@@ -273,3 +273,29 @@ def test_report_handles_malformed_attack_fingerprints():
     assert report["attack_fingerprints"] == [
         {"fingerprint_id": "QR-URL-001"}
     ]
+def test_report_includes_evidence_correlation():
+    analysis = sample_analysis()
+    analysis["evidence_correlation"] = {
+        "evidence_level": "CORROBORATED",
+        "fingerprint_count": 2,
+        "source_count": 2,
+        "sources": ["url_analysis", "redirect_analysis"],
+        "explanation": "Findings appear across two evidence sources.",
+    }
+
+    report = build_risk_report(analysis)
+
+    assert report["evidence_correlation"]["evidence_level"] == (
+        "CORROBORATED"
+    )
+    assert report["evidence_correlation"]["fingerprint_count"] == 2
+    assert report["evidence_correlation"]["source_count"] == 2
+
+
+def test_report_handles_missing_evidence_correlation():
+    report = build_risk_report(sample_analysis())
+
+    assert report["evidence_correlation"]["evidence_level"] == (
+        "NO_EVIDENCE"
+    )
+    assert report["evidence_correlation"]["source_count"] == 0

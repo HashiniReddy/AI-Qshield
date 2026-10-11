@@ -187,6 +187,30 @@ def build_risk_report(analysis):
         item for item in attack_fingerprints
         if isinstance(item, dict)
     ]
+        # Include a safe evidence-correlation summary.
+    evidence_correlation = analysis.get(
+        "evidence_correlation",
+        {
+            "evidence_level": "NO_EVIDENCE",
+            "fingerprint_count": 0,
+            "source_count": 0,
+            "sources": [],
+            "explanation": (
+                "No recognized evidence sources support a finding."
+            ),
+        },
+    )
+
+    if not isinstance(evidence_correlation, dict):
+        evidence_correlation = {
+            "evidence_level": "NO_EVIDENCE",
+            "fingerprint_count": 0,
+            "source_count": 0,
+            "sources": [],
+            "explanation": (
+                "No recognized evidence sources support a finding."
+            ),
+        }
 
     return {
         "success": True,
@@ -205,4 +229,5 @@ def build_risk_report(analysis):
         "score_cap_applied": score_cap_applied,
         "score_breakdown": score_breakdown,
         "attack_fingerprints": attack_fingerprints,
+        "evidence_correlation": evidence_correlation,
     }

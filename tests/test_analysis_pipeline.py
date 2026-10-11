@@ -139,3 +139,43 @@ def test_pipeline_report_exists_when_redirect_analysis_is_enabled():
     assert result["risk_report"]["success"] is True
     assert result["risk_report"]["redirect_status"] == "Completed"
     assert len(result["risk_report"]["redirect_findings"]) >= 1
+
+def test_pipeline_includes_evidence_correlation():
+    pipeline = QRAnalysisPipeline()
+
+    result = pipeline.analyze("dataset/test_qr.png")
+
+    assert result["success"] is True
+    assert "evidence_correlation" in result
+
+    correlation = result["evidence_correlation"]
+
+    assert correlation["evidence_level"] in [
+        "NO_EVIDENCE",
+        "SINGLE_SOURCE",
+        "CORROBORATED",
+        "MULTI_SOURCE",
+    ]
+    assert correlation["source_count"] == len(correlation["sources"])
+    assert correlation["fingerprint_count"] == len(
+        result["attack_fingerprints"]
+    )
+
+
+def test_pipeline_includes_empty_correlation_when_qr_decode_fails(
+    tmp_path,
+):
+    pipeline = QRAnalysisPipeline()
+
+    image_path = tmp_path / "blank.png"
+    blank_image = np.full((100, 100, 3), 255, dtype=np.uint8)
+    cv2.imwrite(str(image_path), blank_image)
+
+    result = pipeline.analyze(image_path)
+
+    assert result["success"] is False
+    assert result["attack_fingerprints"] == []
+    assert result["evidence_correlation"]["evidence_level"] == (
+        "NO_EVIDENCE"
+    )
+    assert result["evidence_correlation"]["source_count"] == 0
