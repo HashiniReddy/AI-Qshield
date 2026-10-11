@@ -7,7 +7,7 @@ from src.qr_engine.qr_decoder import QRDecoder
 from src.qr_forensics.forensics_report import analyze_qr_forensics
 from src.redirect_engine.redirect_analyzer import analyze_redirects
 from src.url_engine.url_analyzer import analyze_url
-from src.risk_engine.url_risk_scorer import score_url_risk
+from src.risk_engine.url_risk_scorer import score_combined_risk
 
 
 class QRAnalysisPipeline:
@@ -44,16 +44,9 @@ class QRAnalysisPipeline:
 
         # Step 4: Analyze the decoded URL.
         url_analysis = analyze_url(content)
-        risk_assessment = None
-
-        if url_analysis["success"]:
-            risk_assessment = score_url_risk(
-                url_analysis["indicators"]
-            )
-
-        # Step 5: Redirect analysis remains optional.
         redirect_analysis = None
 
+        # Step 5: Redirect analysis remains opt-in.
         if check_redirects:
             if url_analysis["success"]:
                 redirect_analysis = analyze_redirects(content)
@@ -67,7 +60,16 @@ class QRAnalysisPipeline:
                     "indicators": [],
                 }
 
-        # Step 6: Return the combined report.
+        # Step 6: Calculate explainable combined risk.
+        risk_assessment = None
+
+        if url_analysis["success"]:
+            risk_assessment = score_combined_risk(
+                url_analysis["indicators"],
+                redirect_analysis=redirect_analysis,
+            )
+
+        # Step 7: Return the combined report.
         return {
             "success": True,
             "error": None,
