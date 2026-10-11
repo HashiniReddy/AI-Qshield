@@ -108,11 +108,43 @@ def build_risk_report(analysis):
     scoring_note = risk.get("scoring_note")
     if not isinstance(scoring_note, str) or not scoring_note.strip():
         scoring_note = DEFAULT_SCORING_NOTE
+    # Extract threat-intelligence results safely.
+    threat_intel = analysis.get("threat_intelligence")
+
+    if not isinstance(threat_intel, dict):
+        threat_intel = None
+
+    if threat_intel is None:
+        threat_intel_report = {
+            "status": "Not performed",
+            "provider": None,
+            "hostname": None,
+            "malicious_count": None,
+            "suspicious_count": None,
+            "error": None,
+        }
+    else:
+        available = threat_intel.get("available") is True
+        threat_intel_report = {
+            "status": "Completed" if available else "Unavailable",
+            "provider": threat_intel.get("provider"),
+            "hostname": threat_intel.get("hostname"),
+            "malicious_count": (
+                threat_intel.get("malicious_count")
+                if available else None
+            ),
+            "suspicious_count": (
+                threat_intel.get("suspicious_count")
+                if available else None
+            ),
+            "error": threat_intel.get("error"),
+        }
 
     return {
         "success": True,
         "risk_score": score,
         "risk_level": risk_level,
+        "threat_intelligence": threat_intel_report,
         "severity_summary": guidance["summary"],
         "recommended_action": guidance["recommended_action"],
         "decoded_content": decoding.get("content"),

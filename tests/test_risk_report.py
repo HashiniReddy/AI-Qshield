@@ -156,3 +156,47 @@ def test_report_includes_severity_guidance():
     assert report["severity_summary"]
     assert report["recommended_action"]
     assert "high" in report["severity_summary"].lower()
+
+def test_report_includes_available_threat_intelligence():
+    analysis = sample_analysis() 
+    analysis["threat_intelligence"] = {
+        "success": True,
+        "hostname": "example.com",
+        "provider": "VirusTotal",
+        "available": True,
+        "malicious_count": 2,
+        "suspicious_count": 1,
+        "error": None,
+    }
+
+    report = build_risk_report(analysis)
+
+    assert report["success"] is True
+    assert report["threat_intelligence"]["status"] == "Completed"
+    assert report["threat_intelligence"]["provider"] == "VirusTotal"
+    assert report["threat_intelligence"]["hostname"] == "example.com"
+    assert report["threat_intelligence"]["malicious_count"] == 2
+    assert report["threat_intelligence"]["suspicious_count"] == 1
+
+
+def test_report_handles_unavailable_threat_intelligence():
+    analysis = sample_analysis()
+    analysis["threat_intelligence"] = {
+        "success": False,
+        "hostname": "example.com",
+        "provider": "VirusTotal",
+        "available": False,
+        "malicious_count": None,
+        "suspicious_count": None,
+        "error": "VirusTotal rate limit reached",
+    }
+
+    report = build_risk_report(analysis)
+
+    assert report["success"] is True
+    assert report["threat_intelligence"]["status"] == "Unavailable"
+    assert report["threat_intelligence"]["malicious_count"] is None
+    assert report["threat_intelligence"]["suspicious_count"] is None
+    assert report["threat_intelligence"]["error"] == (
+        "VirusTotal rate limit reached"
+    )
