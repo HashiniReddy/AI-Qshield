@@ -33,3 +33,17 @@ def test_sensitive_keyword():
 
     assert result["success"] is True
     assert "SENSITIVE_KEYWORD" in result["indicators"]
+
+def test_url_shortener():
+    result = analyze_url("https://bit.ly/example")
+
+    assert result["success"] is True
+    assert "URL_SHORTENER" in result["indicators"]
+    assert result["review_recommended"] is True
+
+
+def test_unicode_domain():
+    result = analyze_url("https://пример.рф/login")
+
+    assert result["success"] is True
+    assert "UNICODE_DOMAIN" in result["indicators"]

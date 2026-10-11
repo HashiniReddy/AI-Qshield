@@ -1,3 +1,4 @@
+
 from urllib.parse import urlparse, unquote
 import ipaddress
 import re
@@ -11,6 +12,16 @@ SUSPICIOUS_KEYWORDS = [
     "account",
     "password",
 ]
+
+URL_SHORTENER_DOMAINS = {
+    "bit.ly",
+    "tinyurl.com",
+    "t.co",
+    "is.gd",
+    "ow.ly",
+    "cutt.ly",
+    "shorturl.at",
+}
 
 
 def is_hostname_well_formed(hostname):
@@ -40,6 +51,16 @@ def is_hostname_well_formed(hostname):
 
     return True
 
+
+def is_url_shortener(hostname):
+    """Check whether a hostname matches a known URL shortener."""
+
+    hostname = hostname.lower().rstrip(".")
+
+    return any(
+        hostname == domain or hostname.endswith("." + domain)
+        for domain in URL_SHORTENER_DOMAINS
+    )
 
 
 def analyze_url(url):
@@ -99,8 +120,8 @@ def analyze_url(url):
     except ValueError:
         pass
 
-    # Check for an unusual number of subdomains.
-    if len(hostname.split(".")) >= 5:
+    # Check for an unusual number of domain labels.
+    if len(hostname.rstrip(".").split(".")) >= 5:
         indicators.append("MANY_DOMAIN_LABELS")
 
     # Check for an '@' symbol in the URL authority.
@@ -116,6 +137,14 @@ def analyze_url(url):
         re.IGNORECASE,
     ):
         indicators.append("SENSITIVE_KEYWORD")
+
+    # Flag known URL-shortening services.
+    if is_url_shortener(hostname):
+        indicators.append("URL_SHORTENER")
+
+    # Flag Unicode hostnames for closer inspection.
+    if not hostname.isascii():
+        indicators.append("UNICODE_DOMAIN")
 
     return {
         "success": True,
