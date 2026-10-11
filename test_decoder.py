@@ -1,10 +1,11 @@
+
+from pprint import pprint
+
 from src.qr_engine.qr_decoder import QRDecoder
 
 
 def main():
-
     decoder = QRDecoder()
-
     result = decoder.decode("dataset/test_qr.png")
 
     print()
@@ -17,6 +18,9 @@ def main():
     print(f"Content Type : {result['content_type']}")
     print(f"Is URL       : {result['is_url']}")
     print(f"Error        : {result['error']}")
+
+    print("\nQR Geometry:")
+    pprint(result["geometry"])
 
     print("=" * 50)
 
