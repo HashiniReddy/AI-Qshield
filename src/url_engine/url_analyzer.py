@@ -1,4 +1,4 @@
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 import ipaddress
 import re
 
@@ -11,6 +11,35 @@ SUSPICIOUS_KEYWORDS = [
     "account",
     "password",
 ]
+
+
+def is_hostname_well_formed(hostname):
+    """Perform basic structural checks on a hostname."""
+
+    if not hostname or len(hostname) > 253:
+        return False
+
+    # Accept IP addresses separately.
+    try:
+        ipaddress.ip_address(hostname)
+        return True
+    except ValueError:
+        pass
+
+    labels = hostname.rstrip(".").split(".")
+
+    for label in labels:
+        if (
+            not label
+            or len(label) > 63
+            or label.startswith("-")
+            or label.endswith("-")
+            or not re.fullmatch(r"[a-z0-9-]+", label)
+        ):
+            return False
+
+    return True
+
 
 
 def analyze_url(url):
@@ -47,6 +76,21 @@ def analyze_url(url):
 
     indicators = []
     hostname = parsed.hostname.lower()
+
+    # Check basic hostname structure.
+    if not is_hostname_well_formed(hostname):
+        indicators.append("MALFORMED_HOSTNAME")
+
+    # Identify percent-encoded characters.
+    if re.search(r"%[0-9a-fA-F]{2}", url):
+        indicators.append("PERCENT_ENCODING_PRESENT")
+
+    # Flag encoded URL delimiters for closer inspection.
+    decoded_url = unquote(url)
+
+    if decoded_url != url and re.search(r"[@/\\?#]", decoded_url):
+        if re.search(r"%(?:2f|5c|3f|23|40)", url, re.IGNORECASE):
+            indicators.append("ENCODED_URL_DELIMITER")
 
     # Check whether the hostname is an IP address.
     try:
