@@ -177,6 +177,17 @@ def build_risk_report(analysis):
             "error": threat_intel.get("error"),
         }
 
+            # Include only well-formed fingerprint entries.
+    attack_fingerprints = analysis.get("attack_fingerprints", [])
+
+    if not isinstance(attack_fingerprints, list):
+        attack_fingerprints = []
+
+    attack_fingerprints = [
+        item for item in attack_fingerprints
+        if isinstance(item, dict)
+    ]
+
     return {
         "success": True,
         "risk_score": score,
@@ -193,4 +204,5 @@ def build_risk_report(analysis):
         "raw_risk_score": raw_score,
         "score_cap_applied": score_cap_applied,
         "score_breakdown": score_breakdown,
+        "attack_fingerprints": attack_fingerprints,
     }

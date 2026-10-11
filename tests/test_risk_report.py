@@ -236,3 +236,40 @@ def test_report_handles_raw_score_above_cap():
     assert report["risk_score"] == 100
     assert report["raw_risk_score"] == 125
     assert report["score_cap_applied"] is True
+def test_report_includes_attack_fingerprints():
+    analysis = sample_analysis()
+    analysis["attack_fingerprints"] = [
+        {
+            "fingerprint_id": "QR-URL-001",
+            "name": "Suspicious URL Structure",
+            "matched_indicators": ["URL_SHORTENER"],
+            "source": "url_analysis",
+            "explanation": "The URL has a structural indicator.",
+            "recommended_action": "Inspect the destination.",
+        }
+    ]
+
+    report = build_risk_report(analysis)
+
+    assert report["success"] is True
+    assert len(report["attack_fingerprints"]) == 1
+    assert (
+        report["attack_fingerprints"][0]["fingerprint_id"]
+        == "QR-URL-001"
+    )
+
+
+def test_report_handles_malformed_attack_fingerprints():
+    analysis = sample_analysis()
+    analysis["attack_fingerprints"] = [
+        None,
+        "invalid",
+        {"fingerprint_id": "QR-URL-001"},
+    ]
+
+    report = build_risk_report(analysis)
+
+    assert report["success"] is True
+    assert report["attack_fingerprints"] == [
+        {"fingerprint_id": "QR-URL-001"}
+    ]

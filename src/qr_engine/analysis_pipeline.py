@@ -15,6 +15,9 @@ from src.report_engine.risk_report import build_risk_report
 from src.threat_intel.threat_intel_client import (
     lookup_domain_reputation,
 )
+from src.attack_fingerprint.attack_fingerprinter import (
+    identify_attack_fingerprints,
+)
 
 
 class QRAnalysisPipeline:
@@ -127,6 +130,12 @@ class QRAnalysisPipeline:
                 url_analysis["indicators"],
                 redirect_analysis=redirect_analysis,
             )
+                # Step 6a: Identify explainable attack fingerprints.
+        attack_fingerprints = identify_attack_fingerprints(
+            url_analysis=url_analysis,
+            redirect_analysis=redirect_analysis,
+            threat_intelligence=threat_intelligence,
+        )
 
         # Step 7: Build the complete analysis result.
         result = {
@@ -139,6 +148,7 @@ class QRAnalysisPipeline:
             "redirect_analysis": redirect_analysis,
             "threat_intelligence": threat_intelligence,
             "risk_report": None,
+            "attack_fingerprints": attack_fingerprints,
         }
 
         # Step 8: Create the readable investigator report.
