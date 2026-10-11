@@ -2,23 +2,21 @@
 """
 AI-QShield - QR Intelligence Engine
 
-Day 2 module.
-
 Responsibilities:
     1. Load a QR image safely.
     2. Detect and decode QR content.
-    3. Validate decoded content.
-    4. Classify content as URL or TEXT.
-    5. Calculate QR image geometry.
-    6. Return a structured result.
+    3. Classify content as URL or TEXT.
+    4. Calculate QR image geometry.
+    5. Return structured results.
 
 Important:
     This module does not determine whether a URL is malicious.
 """
 
-import cv2
 from pathlib import Path
 from urllib.parse import urlparse
+
+import cv2
 
 
 class QRDecoder:
@@ -30,10 +28,9 @@ class QRDecoder:
     def decode(self, image_path):
         """Decode a QR image and return structured results."""
 
-        # Step 1: Convert the path
         image_path = Path(image_path)
 
-        # Step 2: Check whether the file exists
+        # Check whether the image exists.
         if not image_path.exists():
             return {
                 "success": False,
@@ -44,10 +41,10 @@ class QRDecoder:
                 "geometry": None
             }
 
-        # Step 3: Load the image
+        # Load the image.
         image = cv2.imread(str(image_path))
 
-        # Step 4: Handle unreadable images safely
+        # Handle unreadable images.
         if image is None:
             return {
                 "success": False,
@@ -58,51 +55,13 @@ class QRDecoder:
                 "geometry": None
             }
 
-        print("Image Shape:", image.shape)
-
-        # Step 5: Create a grayscale image for pixel analysis
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        print("Gray Image Shape:", gray.shape)
-
-        # Temporary learning experiment:
-        # Examine a row in the existing 330x330 test image.
-        if gray.shape[0] > 165 and gray.shape[1] >= 90:
-            middle_row = gray[165]
-            row = middle_row[35:90]
-
-            binary_row = [
-                "B" if pixel < 128 else "W"
-                for pixel in row
-            ]
-
-            runs = []
-            if binary_row:
-                current = binary_row[0]
-                count = 1
-
-                for value in binary_row[1:]:
-                    if value == current:
-                        count += 1
-                    else:
-                        runs.append((current, count))
-                        current = value
-                        count = 1
-
-                runs.append((current, count))
-
-            print("Runs:", runs)
-            print("QR Row Binary:", binary_row)
-
-        # Step 6: Detect and decode the QR code
+        # Detect and decode the QR code.
         content, points, _ = self.detector.detectAndDecode(image)
 
-        print("QR Points:", points)
-
-        # Step 7: Calculate geometry when points are available
+        # Calculate geometry when QR points are available.
         geometry = self.get_geometry(points, image.shape)
-        print("QR Geometry:", geometry)
 
-        # Step 8: Handle images without a decodable QR code
+        # Handle images without a decodable QR code.
         if not content:
             return {
                 "success": False,
@@ -113,14 +72,13 @@ class QRDecoder:
                 "geometry": geometry
             }
 
-        # Step 9: Clean the decoded content
+        # Clean the decoded content.
         content = content.strip()
 
-        # Step 10: Classify the content
+        # Classify the content.
         is_url = self.is_url(content)
         content_type = "URL" if is_url else "TEXT"
 
-        # Step 11: Return the complete result
         return {
             "success": True,
             "error": None,
@@ -163,8 +121,7 @@ class QRDecoder:
 
         margin_difference = max(margins) - min(margins)
 
-        # This checks margin similarity only.
-        # It does not certify a standards-compliant quiet zone.
+        # Checks margin similarity, not QR-standard compliance.
         quiet_zone_consistent = margin_difference <= 5
 
         return {
