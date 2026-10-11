@@ -87,3 +87,54 @@ def test_report_handles_missing_risk_assessment():
 def test_report_rejects_invalid_input():
     with pytest.raises(TypeError):
         build_risk_report("invalid")
+
+def test_report_rejects_invalid_risk_score():
+    analysis = sample_analysis()
+    analysis["risk_assessment"]["score"] = 150
+
+    report = build_risk_report(analysis)
+
+    assert report["success"] is False
+    assert report["error"] == "Risk score is missing or invalid"
+
+
+def test_report_handles_malformed_findings():
+    analysis = sample_analysis()
+    analysis["risk_assessment"]["explanations"] = [
+        None,
+        "invalid finding",
+        {
+            "indicator": "URL_SHORTENER",
+            "source": "url_analysis",
+            "weight": 10,
+            "explanation": "A URL shortener was detected.",
+        },
+    ]
+
+    report = build_risk_report(analysis)
+
+    assert report["success"] is True
+    assert len(report["url_findings"]) == 1
+    assert report["redirect_findings"] == []
+
+
+def test_report_handles_missing_decoding_data():
+    analysis = sample_analysis()
+    analysis.pop("decoding")
+
+    report = build_risk_report(analysis)
+
+    assert report["success"] is True
+    assert report["decoded_content"] is None
+
+
+def test_report_recommends_review_for_positive_score():
+    analysis = sample_analysis()
+    analysis["risk_assessment"]["score"] = 10
+    analysis["risk_assessment"]["review_recommended"] = False
+    analysis["risk_assessment"]["explanations"] = []
+
+    report = build_risk_report(analysis)
+
+    assert report["success"] is True
+    assert "Review" in report["recommendation"]
