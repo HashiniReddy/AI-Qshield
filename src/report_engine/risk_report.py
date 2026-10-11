@@ -61,6 +61,43 @@ def build_risk_report(analysis):
         if isinstance(item, dict)
     ]
 
+
+    # Build a readable score breakdown from recognized findings.
+    score_breakdown = []
+
+    for item in valid_findings:
+        weight = item.get("weight", 0)
+
+        # Avoid displaying invalid weights.
+        if (
+            not isinstance(weight, (int, float))
+            or isinstance(weight, bool)
+        ):
+            weight = 0
+
+        score_breakdown.append({
+            "indicator": item.get("indicator", "UNKNOWN"),
+            "source": item.get("source", "unknown"),
+            "weight": weight,
+            "explanation": item.get(
+                "explanation",
+                "No explanation available.",
+            ),
+        })
+
+    # Older results may not contain raw_score.
+    raw_score = risk.get("raw_score", score)
+
+    if (
+        not isinstance(raw_score, (int, float))
+        or isinstance(raw_score, bool)
+        or raw_score < score
+    ):
+        raw_score = score
+
+    score_cap_applied = raw_score > 100
+
+
     url_findings = [
         item for item in valid_findings
         if item.get("source") == "url_analysis"
@@ -153,4 +190,7 @@ def build_risk_report(analysis):
         "redirect_status": redirect_status,
         "recommendation": recommendation,
         "scoring_note": scoring_note,
+        "raw_risk_score": raw_score,
+        "score_cap_applied": score_cap_applied,
+        "score_breakdown": score_breakdown,
     }

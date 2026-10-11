@@ -200,3 +200,39 @@ def test_report_handles_unavailable_threat_intelligence():
     assert report["threat_intelligence"]["error"] == (
         "VirusTotal rate limit reached"
     )
+
+def test_report_includes_score_breakdown():
+    report = build_risk_report(sample_analysis())
+
+    assert report["success"] is True
+    assert report["raw_risk_score"] == 35
+    assert report["score_cap_applied"] is False
+    assert len(report["score_breakdown"]) == 2
+
+    first = report["score_breakdown"][0]
+    assert first["indicator"] == "URL_SHORTENER"
+    assert first["source"] == "url_analysis"
+    assert first["weight"] == 10
+    assert first["explanation"] == (
+        "A URL shortener was detected."
+    )
+
+
+def test_report_uses_score_when_raw_score_is_missing():
+    report = build_risk_report(sample_analysis())
+
+    assert report["raw_risk_score"] == 35
+    assert report["score_cap_applied"] is False
+
+
+def test_report_handles_raw_score_above_cap():
+    analysis = sample_analysis()
+    analysis["risk_assessment"]["score"] = 100
+    analysis["risk_assessment"]["raw_score"] = 125
+
+    report = build_risk_report(analysis)
+
+    assert report["success"] is True
+    assert report["risk_score"] == 100
+    assert report["raw_risk_score"] == 125
+    assert report["score_cap_applied"] is True

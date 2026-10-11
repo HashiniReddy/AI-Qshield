@@ -63,3 +63,39 @@ def test_unknown_indicators_are_ignored():
 def test_invalid_input_raises_type_error():
     with pytest.raises(TypeError):
         score_url_risk("URL_SHORTENER")
+
+def test_url_indicator_has_human_readable_explanation():
+    result = score_url_risk(["URL_SHORTENER"])
+
+    finding = result["explanations"][0]
+
+    assert finding["indicator"] == "URL_SHORTENER"
+    assert finding["explanation"] == (
+        "The URL uses a shortening service that may hide "
+        "the final destination."
+    )
+
+
+def test_raw_score_matches_score_when_below_cap():
+    result = score_url_risk(
+        ["URL_SHORTENER", "IP_ADDRESS_HOST"]
+    )
+
+    assert result["raw_score"] == 30
+    assert result["score"] == 30
+
+
+def test_raw_score_preserves_total_before_cap():
+    result = score_url_risk(
+        [
+            "MALFORMED_HOSTNAME",
+            "IP_ADDRESS_HOST",
+            "AT_SYMBOL_IN_AUTHORITY",
+            "ENCODED_URL_DELIMITER",
+            "UNICODE_DOMAIN",
+            "URL_SHORTENER",
+        ]
+    )
+
+    assert result["raw_score"] == 105
+    assert result["score"] == 100
