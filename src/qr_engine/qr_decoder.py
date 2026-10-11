@@ -57,6 +57,7 @@ class QRDecoder:
 
         # Detect and decode the QR code.
         content, points, _ = self.detector.detectAndDecode(image)
+        corner_points = points.tolist() if points is not None else None
 
         # Calculate geometry when QR points are available.
         geometry = self.get_geometry(points, image.shape)
