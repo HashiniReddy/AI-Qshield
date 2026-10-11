@@ -1,13 +1,54 @@
+
 from urllib.parse import urlparse
+import ipaddress
 import requests
 
 
 MAX_REDIRECTS = 5
 TIMEOUT_SECONDS = 5
+REDIRECT_CODES = (301, 302, 303, 307, 308)
+
+
+def validate_destination(url):
+    """Reject malformed URLs and obvious local/private destinations."""
+
+    try:
+        parsed = urlparse(url)
+
+        if parsed.scheme.lower() not in ("http", "https"):
+            return False, "UNSAFE_REDIRECT_SCHEME"
+
+        if not parsed.hostname or parsed.username is not None:
+            return False, "INVALID_DESTINATION"
+
+        # Reject malformed ports.
+        _ = parsed.port
+
+        hostname = parsed.hostname.lower().rstrip(".")
+
+        # Block localhost names.
+        if hostname == "localhost" or hostname.endswith(".localhost"):
+            return False, "LOCALHOST_DESTINATION"
+
+        # Block non-public IP addresses.
+        try:
+            address = ipaddress.ip_address(hostname)
+
+            if not address.is_global:
+                return False, "NON_PUBLIC_IP_DESTINATION"
+
+        except ValueError:
+            # Hostname is not an IP literal.
+            pass
+
+        return True, None
+
+    except (ValueError, TypeError, AttributeError):
+        return False, "INVALID_DESTINATION"
 
 
 def analyze_redirects(url):
-    """Inspect an HTTP redirect chain with basic safety limits."""
+    """Inspect HTTP redirects with basic destination checks."""
 
     if not isinstance(url, str) or not url.strip():
         return {
@@ -18,26 +59,24 @@ def analyze_redirects(url):
         }
 
     url = url.strip()
-    parsed = urlparse(url)
+    safe, reason = validate_destination(url)
 
-    if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
+    if not safe:
         return {
             "success": False,
-            "error": "A valid HTTP or HTTPS URL is required",
+            "error": reason,
             "redirect_chain": [],
-            "indicators": [],
+            "indicators": [reason],
         }
 
     chain = [url]
     indicators = []
 
     try:
-        # Disable automatic redirects so each hop can be inspected.
         with requests.Session() as session:
-            session.max_redirects = MAX_REDIRECTS
-
             for _ in range(MAX_REDIRECTS):
                 current = chain[-1]
+
                 response = session.get(
                     current,
                     allow_redirects=False,
@@ -46,7 +85,7 @@ def analyze_redirects(url):
                 )
 
                 try:
-                    if response.status_code not in (301, 302, 303, 307, 308):
+                    if response.status_code not in REDIRECT_CODES:
                         break
 
                     location = response.headers.get("Location")
@@ -55,14 +94,17 @@ def analyze_redirects(url):
                         break
 
                     next_url = requests.compat.urljoin(current, location)
-                    next_parsed = urlparse(next_url)
+                    safe, reason = validate_destination(next_url)
 
-                    if (
-                        next_parsed.scheme.lower() not in ("http", "https")
-                        or not next_parsed.hostname
-                    ):
-                        indicators.append("UNSAFE_REDIRECT_SCHEME")
+                    if not safe:
+                        indicators.append(reason)
                         break
+
+                    current_scheme = urlparse(current).scheme.lower()
+                    next_scheme = urlparse(next_url).scheme.lower()
+
+                    if current_scheme == "https" and next_scheme == "http":
+                        indicators.append("HTTPS_DOWNGRADE")
 
                     if next_url in chain:
                         indicators.append("REDIRECT_LOOP")
@@ -84,7 +126,6 @@ def analyze_redirects(url):
             "indicators": indicators,
         }
 
-    # Compare the first and last hostnames.
     first_host = urlparse(chain[0]).hostname
     final_host = urlparse(chain[-1]).hostname
 

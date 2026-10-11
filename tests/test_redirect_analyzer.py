@@ -1,6 +1,10 @@
+
 from unittest.mock import patch, Mock
 
-from src.redirect_engine.redirect_analyzer import analyze_redirects
+from src.redirect_engine.redirect_analyzer import (
+    analyze_redirects,
+    validate_destination,
+)
 
 
 def make_response(status_code, location=None):
@@ -53,3 +57,45 @@ def test_empty_url():
     result = analyze_redirects("")
 
     assert result["success"] is False
+
+
+def test_blocks_localhost():
+    safe, reason = validate_destination("http://localhost/admin")
+
+    assert safe is False
+    assert reason == "LOCALHOST_DESTINATION"
+
+
+def test_blocks_private_ip():
+    safe, reason = validate_destination("http://192.168.1.1/")
+
+    assert safe is False
+    assert reason == "NON_PUBLIC_IP_DESTINATION"
+
+
+def test_blocks_loopback_ip():
+    safe, reason = validate_destination("http://127.0.0.1/")
+
+    assert safe is False
+    assert reason == "NON_PUBLIC_IP_DESTINATION"
+
+
+def test_allows_public_ip():
+    safe, reason = validate_destination("https://8.8.8.8/")
+
+    assert safe is True
+    assert reason is None
+
+
+def test_blocks_non_http_scheme():
+    safe, reason = validate_destination("javascript:alert(1)")
+
+    assert safe is False
+    assert reason == "UNSAFE_REDIRECT_SCHEME"
+
+
+def test_rejects_invalid_port():
+    safe, reason = validate_destination("https://example.com:invalid/")
+
+    assert safe is False
+    assert reason == "INVALID_DESTINATION"
