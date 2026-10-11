@@ -7,7 +7,7 @@ Responsibilities:
     2. Detect and decode QR content.
     3. Classify content as URL or TEXT.
     4. Calculate QR image geometry.
-    5. Return structured results.
+    5. Return structured results, including QR corner points.
 
 Important:
     This module does not determine whether a URL is malicious.
@@ -38,7 +38,8 @@ class QRDecoder:
                 "content": None,
                 "content_type": None,
                 "is_url": False,
-                "geometry": None
+                "geometry": None,
+                "corner_points": None,
             }
 
         # Load the image.
@@ -52,11 +53,14 @@ class QRDecoder:
                 "content": None,
                 "content_type": None,
                 "is_url": False,
-                "geometry": None
+                "geometry": None,
+                "corner_points": None,
             }
 
         # Detect and decode the QR code.
         content, points, _ = self.detector.detectAndDecode(image)
+
+        # Convert corner points into ordinary Python lists.
         corner_points = points.tolist() if points is not None else None
 
         # Calculate geometry when QR points are available.
@@ -70,7 +74,8 @@ class QRDecoder:
                 "content": None,
                 "content_type": None,
                 "is_url": False,
-                "geometry": geometry
+                "geometry": geometry,
+                "corner_points": corner_points,
             }
 
         # Clean the decoded content.
@@ -86,7 +91,8 @@ class QRDecoder:
             "content": content,
             "content_type": content_type,
             "is_url": is_url,
-            "geometry": geometry
+            "geometry": geometry,
+            "corner_points": corner_points,
         }
 
     @staticmethod
@@ -117,7 +123,7 @@ class QRDecoder:
             left_margin,
             top_margin,
             right_margin,
-            bottom_margin
+            bottom_margin,
         ]
 
         margin_difference = max(margins) - min(margins)
@@ -137,7 +143,7 @@ class QRDecoder:
             "right_margin": float(right_margin),
             "bottom_margin": float(bottom_margin),
             "margin_difference": float(margin_difference),
-            "quiet_zone_consistent": bool(quiet_zone_consistent)
+            "quiet_zone_consistent": bool(quiet_zone_consistent),
         }
 
     @staticmethod
