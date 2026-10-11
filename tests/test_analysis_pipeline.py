@@ -71,3 +71,23 @@ def test_pipeline_runs_optional_redirect_analysis(mock_redirects):
     assert result["redirect_analysis"]["redirect_count"] == 1
     assert "FINAL_HOST_DIFFERS" in result["redirect_analysis"]["indicators"]
     mock_redirects.assert_called_once_with("https://example.com")
+
+def test_pipeline_includes_url_analysis_and_risk_assessment():
+    pipeline = QRAnalysisPipeline()
+
+    result = pipeline.analyze("dataset/test_qr.png")
+
+    assert result["success"] is True
+
+    # Verify URL analysis.
+    assert result["url_analysis"]["success"] is True
+    assert result["url_analysis"]["hostname"] == "example.com"
+    assert isinstance(result["url_analysis"]["indicators"], list)
+
+    # Verify explainable risk scoring.
+    assert result["risk_assessment"] is not None
+    assert 0 <= result["risk_assessment"]["score"] <= 100
+    assert result["risk_assessment"]["risk_level"] in [
+        "MINIMAL", "LOW", "MEDIUM", "HIGH"
+    ]
+    assert isinstance(result["risk_assessment"]["explanations"], list)
