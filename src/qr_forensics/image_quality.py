@@ -54,3 +54,53 @@ def analyze_image_quality(image):
         "sharpness_score": round(sharpness, 2),
         "contrast_score": round(contrast, 2)
     }
+
+def classify_image_quality(result):
+    """
+    Convert image-quality measurements into review findings.
+
+    These findings describe image quality, not maliciousness.
+    Thresholds are preliminary and need further calibration.
+    """
+
+    if not isinstance(result, dict) or not result.get("success"):
+        return {
+            "success": False,
+            "findings": [],
+            "error": "Valid image-quality results are required"
+        }
+
+    sharpness = result.get("sharpness_score")
+    contrast = result.get("contrast_score")
+
+    if not isinstance(sharpness, (int, float)) or not np.isfinite(sharpness):
+        return {
+            "success": False,
+            "findings": [],
+            "error": "Invalid sharpness score"
+        }
+
+    if not isinstance(contrast, (int, float)) or not np.isfinite(contrast):
+        return {
+            "success": False,
+            "findings": [],
+            "error": "Invalid contrast score"
+        }
+
+    findings = []
+
+    # Preliminary thresholds for experimentation only.
+    if sharpness < 150:
+        findings.append("LOW_SHARPNESS")
+
+    if contrast < 40:
+        findings.append("LOW_CONTRAST")
+
+    if findings:
+        findings.append("IMAGE_QUALITY_REVIEW")
+
+    return {
+        "success": True,
+        "findings": findings,
+        "error": None
+    }
